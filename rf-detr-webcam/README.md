@@ -60,22 +60,32 @@ Browser (getUserMedia)
   → Canvas overlay rendered from Object URL
 ```
 
-- All 3 model sizes are pre-loaded and JIT-compiled on server startup (float16, `compile=True`)
+- All 4 model sizes are pre-loaded and JIT-compiled on server startup (float16, `compile=True`)
 - Frames are captured at ~15 FPS max (66ms throttle) to stay well within inference budget
-- Isolated inference runs at ~35 FPS at 320px on M4 Max
+- Isolated inference runs at ~35 FPS at 320px on Apple Silicon (MPS) / modern GPUs
 
 ## Requirements
 
 - Python 3.10+
-- Mac M4 Max / 48GB RAM (Large model runs fine; smaller models work on any hardware)
+- **Hardware Acceleration:** Recommended to have a GPU/MPS-capable device (NVIDIA CUDA or Apple Silicon MPS) to run the models efficiently.
+- **System Memory:** 
+  - **16GB+ RAM** is recommended when loading all models simultaneously (especially Large & Segment).
+  - Small and Medium models can run on CPUs and lower-resource environments.
 - Webcam access via browser
 
-## Model Sizes
+## Model Sizes & Downloads
 
-| Model | Params | Recommended for |
-|-------|--------|----------------|
-| Small (43M) | 43M | FPS-focused, CPU |
-| Medium (160M) | 160M | Balanced |
-| Large (227M) | 227M | Best accuracy, M4 Max |
+| Model | Params | Filename | Recommended for |
+|-------|--------|----------|----------------|
+| **Small (43M)** | 43M | `rf-detr-small.pth` | FPS-focused, CPU / Edge devices |
+| **Segment Small (129M)** | 129M | `rf-detr-seg-small.pt` | Real-time instance segmentation (Requires GPU/MPS) |
+| **Medium (160M)** | 160M | `rf-detr-medium.pth` | Balanced, CPU / Mid-range GPU |
+| **Large (227M)** | 227M | `rf-detr-large-2026.pth` | Best accuracy, requires GPU/MPS acceleration |
 
-Models are loaded from and cached locally in the repository's `rf_models/` directory (created at the repository root). If they are not present, they will be automatically downloaded and saved to that folder on first run.
+### How Models are Downloaded & Stored
+
+The server is configured to load these models locally:
+1. **Cache Location:** On startup, the server creates (if not already present) an `rf_models/` directory at the **root of the workspace repository** (`computer-vision/rf_models/`).
+2. **Automatic Download:** When `server.py` initializes, it checks if the model weight files (`.pth` or `.pt`) exist in the `rf_models/` folder.
+3. **Download Process:** If any file is missing, the underlying `rfdetr` package automatically fetches the official pre-trained weights from Roboflow's public Google Cloud Storage bucket and saves them directly to `computer-vision/rf_models/`. 
+4. **Manual Placement (Optional):** If you prefer to download them manually, you can download the weights from their respective URLs (defined in `rfdetr.assets.model_weights`) and place them directly in the `rf_models/` directory before starting the server.
