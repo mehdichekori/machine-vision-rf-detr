@@ -21,7 +21,7 @@ _confidence_threshold = 0.5
 
 def load_models():
     import os
-    from rfdetr import RFDETRSmall, RFDETRMedium, RFDETRLarge
+    from rfdetr import RFDETRSmall, RFDETRMedium, RFDETRLarge, RFDETRSegSmall
     from rfdetr.assets.coco_classes import COCO_CLASSES
 
     # Get absolute path to the local rf_models directory
@@ -33,12 +33,18 @@ def load_models():
         "Small (43M)": (RFDETRSmall, "rf-detr-small.pth"),
         "Medium (160M)": (RFDETRMedium, "rf-detr-medium.pth"),
         "Large (227M)": (RFDETRLarge, "rf-detr-large-2026.pth"),
+        "Segment Small (129M)": (RFDETRSegSmall, "rf-detr-seg-small.pt"),
     }
 
     for name, (cls, filename) in MODEL_MAP.items():
-        print(f"Loading {name}...")
         weights_path = os.path.join(rf_models_dir, filename)
+        if not os.path.exists(weights_path):
+            print(f"{name} weights not found locally at '{weights_path}'. Downloading weights now (this may take a few minutes)...")
+        else:
+            print(f"Loading {name} from local cache...")
+            
         model = cls(pretrain_weights=weights_path)
+        print(f"Optimizing {name} for inference...")
         model.optimize_for_inference(compile=True, dtype=torch.float16)
         _models[name] = model
     print("All models loaded.")
@@ -66,7 +72,24 @@ def websocket(ws):
     import supervision as sv
 
     box_ann = sv.BoxAnnotator()
+    corner_ann = sv.BoxCornerAnnotator()
+    color_ann = sv.ColorAnnotator()
+    dot_ann = sv.DotAnnotator()
+    triangle_ann = sv.TriangleAnnotator()
+    percentage_bar_ann = sv.PercentageBarAnnotator()
     label_ann = sv.LabelAnnotator()
+    mask_ann = sv.MaskAnnotator()
+
+    annotations_config = {
+        "boxType": "standard",
+        "showLabels": True,
+        "showColorFill": False,
+        "showCenterDot": False,
+        "showTriangle": False,
+        "showConfidenceBar": False,
+        "showMask": False
+    }
+
     _models_local = {}
     active_model_name = "Small (43M)"
     threshold = 0.5
@@ -116,6 +139,16 @@ def websocket(ws):
                 if scale < 1.0:
                     detections.xyxy = (detections.xyxy / scale).astype(np.int64)
 
+                    # Also upscale segmentation masks to original frame resolution
+                    if getattr(detections, 'mask', None) is not None and detections.mask is not None:
+                        orig_h, orig_w = frame.shape[:2]
+                        resized_masks = []
+                        for m in detections.mask:
+                            m_uint8 = (m.astype(np.uint8)) * 255
+                            m_resized = cv2.resize(m_uint8, (orig_w, orig_h), interpolation=cv2.INTER_NEAREST)
+                            resized_masks.append(m_resized > 127)
+                        detections.mask = np.array(resized_masks)
+
                 # Build serialized detections
                 objects_list = []
                 if len(detections) > 0:
@@ -134,15 +167,45 @@ def websocket(ws):
                 }))
 
                 # Annotate
+                annotated = frame.copy()
                 if len(detections) > 0:
-                    labels = [
-                        f"{COCO_CLASSES[int(cls_id)]} {float(conf):.2f}"
-                        for cls_id, conf in zip(detections.class_id, detections.confidence)
-                    ]
-                    annotated = box_ann.annotate(frame.copy(), detections)
-                    annotated = label_ann.annotate(annotated, detections, labels=labels)
-                else:
-                    annotated = frame.copy()
+                    # 0. Filled Mask (bottom layer, requires segment model)
+                    if annotations_config.get("showMask", False) and getattr(detections, 'mask', None) is not None:
+                        try:
+                            annotated = mask_ann.annotate(annotated, detections)
+                        except Exception as mask_err:
+                            print(f"[mask] Annotation error: {mask_err}")
+
+                    # 1. Color Fill (bottom layer)
+                    if annotations_config.get("showColorFill", False):
+                        annotated = color_ann.annotate(annotated, detections)
+
+                    # 2. Box outline
+                    box_type = annotations_config.get("boxType", "standard")
+                    if box_type == "standard":
+                        annotated = box_ann.annotate(annotated, detections)
+                    elif box_type == "corners":
+                        annotated = corner_ann.annotate(annotated, detections)
+
+                    # 3. Center Dot
+                    if annotations_config.get("showCenterDot", False):
+                        annotated = dot_ann.annotate(annotated, detections)
+
+                    # 4. Triangle Pointer
+                    if annotations_config.get("showTriangle", False):
+                        annotated = triangle_ann.annotate(annotated, detections)
+
+                    # 5. Confidence Bar
+                    if annotations_config.get("showConfidenceBar", False):
+                        annotated = percentage_bar_ann.annotate(annotated, detections)
+
+                    # 6. Labels (top layer)
+                    if annotations_config.get("showLabels", True):
+                        labels = [
+                            f"{COCO_CLASSES[int(cls_id)]} {float(conf):.2f}"
+                            for cls_id, conf in zip(detections.class_id, detections.confidence)
+                        ]
+                        annotated = label_ann.annotate(annotated, detections, labels=labels)
 
                 # Encode annotated frame as binary JPEG
                 _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
@@ -160,6 +223,11 @@ def websocket(ws):
                         active_model_name = new_model_name
                         _models_local.clear()  # force reload on next frame
                     threshold = float(msg.get("threshold", 0.5))
+                    
+                    # Update annotations config
+                    if "annotations" in msg:
+                        annotations_config.update(msg["annotations"])
+                        
                     ws.send(json.dumps({"type": "config_ok", "model": active_model_name}))
 
         except Exception as e:

@@ -42,8 +42,11 @@ Open http://localhost:7861 in your browser, grant webcam permission, then click 
 |---------|-------------|
 | **Camera On/Off** | Starts or stops the webcam stream |
 | **Detection On/Off** | Sends frames to the server for inference (camera keeps running) |
-| **Model** | Small (43M), Medium (160M), or Large (227M) — all pre-loaded at startup |
+| **Model** | Choose inference engine: Small (43M), Medium (160M), Large (227M), or Segment Small (129M) |
 | **Confidence** | Filter detections by minimum confidence threshold |
+| **Box Outline Style** | Configure object boundaries (Standard Box, Corners Only, or None) |
+| **Active Overlays** | Toggle additional overlays: Labels, Color Fill, Filled Mask (segmentation), Center Dot, Triangle Pointer, and Confidence Bar |
+| **Trigger Alarm Center** | Select a target class (from the 80 COCO classes dropdown) to activate warning banners, Audio Sirens, or Speech Synthesized announcements |
 
 ## Architecture
 

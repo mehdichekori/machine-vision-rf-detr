@@ -572,6 +572,29 @@
     text-align: center;
     line-height: 1.5;
   }
+
+  .annotation-settings-row {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  @media (min-width: 600px) {
+    .annotation-settings-row {
+      grid-template-columns: 1fr 2fr;
+      align-items: flex-end;
+    }
+  }
+
+  .overlay-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 4px;
+  }
 </style>
 </head>
 <body>
@@ -595,6 +618,7 @@
               <option value="Small (43M)">Small (43M)</option>
               <option value="Medium (160M)">Medium (160M)</option>
               <option value="Large (227M)">Large (227M)</option>
+              <option value="Segment Small (129M)">Segment Small (129M)</option>
             </select>
           </div>
           <div class="control-group">
@@ -609,6 +633,45 @@
             <div class="btn-group">
               <button id="cameraBtn" class="btn" onclick="toggleCamera()">Camera Off</button>
               <button id="detectBtn" class="btn" onclick="toggleDetection()">Detection Off</button>
+            </div>
+          </div>
+        </div>
+        <div class="annotation-settings-row">
+          <div class="control-group">
+            <label>Box Outline Style</label>
+            <select id="boxStyleSelect">
+              <option value="standard">Standard Box</option>
+              <option value="corners">Corners Only</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>Active Overlays</label>
+            <div class="overlay-checkboxes">
+              <label class="toggle-container">
+                <input type="checkbox" id="showLabels" checked>
+                <span>Labels</span>
+              </label>
+              <label class="toggle-container">
+                <input type="checkbox" id="showColorFill">
+                <span>Color Fill</span>
+              </label>
+              <label class="toggle-container">
+                <input type="checkbox" id="showMask">
+                <span style="color: #00d2ff; font-weight: 500;">Filled Mask</span>
+              </label>
+              <label class="toggle-container">
+                <input type="checkbox" id="showCenterDot">
+                <span>Center Dot</span>
+              </label>
+              <label class="toggle-container">
+                <input type="checkbox" id="showTriangle">
+                <span>Triangle Pointer</span>
+              </label>
+              <label class="toggle-container">
+                <input type="checkbox" id="showConfidenceBar">
+                <span>Confidence Bar</span>
+              </label>
             </div>
           </div>
         </div>
@@ -659,8 +722,90 @@
         <div class="alert-form">
           <div class="control-group">
             <label for="triggerClassInput">Trigger Target Class</label>
-            <input type="text" id="triggerClassInput" placeholder="e.g. person, cup, cell phone" value="person">
-            <div class="class-hint">Type object class name (matches COCO tags)</div>
+            <select id="triggerClassInput">
+              <option value="">-- Deactivated --</option>
+              <option value="airplane">airplane</option>
+              <option value="apple">apple</option>
+              <option value="backpack">backpack</option>
+              <option value="banana">banana</option>
+              <option value="baseball bat">baseball bat</option>
+              <option value="baseball glove">baseball glove</option>
+              <option value="bear">bear</option>
+              <option value="bed">bed</option>
+              <option value="bench">bench</option>
+              <option value="bicycle">bicycle</option>
+              <option value="bird">bird</option>
+              <option value="boat">boat</option>
+              <option value="book">book</option>
+              <option value="bottle">bottle</option>
+              <option value="bowl">bowl</option>
+              <option value="broccoli">broccoli</option>
+              <option value="bus">bus</option>
+              <option value="cake">cake</option>
+              <option value="car">car</option>
+              <option value="carrot">carrot</option>
+              <option value="cat">cat</option>
+              <option value="cell phone">cell phone</option>
+              <option value="chair">chair</option>
+              <option value="clock">clock</option>
+              <option value="couch">couch</option>
+              <option value="cow">cow</option>
+              <option value="cup">cup</option>
+              <option value="dining table">dining table</option>
+              <option value="dog">dog</option>
+              <option value="donut">donut</option>
+              <option value="elephant">elephant</option>
+              <option value="fire hydrant">fire hydrant</option>
+              <option value="fork">fork</option>
+              <option value="frisbee">frisbee</option>
+              <option value="giraffe">giraffe</option>
+              <option value="hair drier">hair drier</option>
+              <option value="handbag">handbag</option>
+              <option value="horse">horse</option>
+              <option value="hot dog">hot dog</option>
+              <option value="keyboard">keyboard</option>
+              <option value="kite">kite</option>
+              <option value="knife">knife</option>
+              <option value="laptop">laptop</option>
+              <option value="microwave">microwave</option>
+              <option value="motorcycle">motorcycle</option>
+              <option value="mouse">mouse</option>
+              <option value="orange">orange</option>
+              <option value="oven">oven</option>
+              <option value="parking meter">parking meter</option>
+              <option value="person" selected>person</option>
+              <option value="pizza">pizza</option>
+              <option value="potted plant">potted plant</option>
+              <option value="refrigerator">refrigerator</option>
+              <option value="remote">remote</option>
+              <option value="sandwich">sandwich</option>
+              <option value="scissors">scissors</option>
+              <option value="sheep">sheep</option>
+              <option value="sink">sink</option>
+              <option value="skateboard">skateboard</option>
+              <option value="skis">skis</option>
+              <option value="snowboard">snowboard</option>
+              <option value="spoon">spoon</option>
+              <option value="sports ball">sports ball</option>
+              <option value="stop sign">stop sign</option>
+              <option value="suitcase">suitcase</option>
+              <option value="surfboard">surfboard</option>
+              <option value="teddy bear">teddy bear</option>
+              <option value="tennis racket">tennis racket</option>
+              <option value="tie">tie</option>
+              <option value="toaster">toaster</option>
+              <option value="toilet">toilet</option>
+              <option value="toothbrush">toothbrush</option>
+              <option value="traffic light">traffic light</option>
+              <option value="train">train</option>
+              <option value="truck">truck</option>
+              <option value="tv">tv</option>
+              <option value="umbrella">umbrella</option>
+              <option value="vase">vase</option>
+              <option value="wine glass">wine glass</option>
+              <option value="zebra">zebra</option>
+            </select>
+            <div class="class-hint">Select object class name to trigger alert</div>
           </div>
           <div class="alarm-options">
             <label class="toggle-container">
@@ -806,6 +951,10 @@ confSlider.addEventListener('input', () => {
 
 modelSelect.addEventListener('change', () => {
   logConsole(`Model configuration changed to: ${modelSelect.value}`, 'info');
+  if (modelSelect.value !== 'Segment Small (129M)' && document.getElementById('showMask').checked) {
+    document.getElementById('showMask').checked = false;
+    logConsole("Notice: 'Filled Mask' deactivated because the selected model engine does not support segmentation.", 'warning');
+  }
   sendConfig();
 });
 
@@ -831,11 +980,39 @@ document.getElementById('enableSpeech').addEventListener('change', (e) => {
   logConsole(`Speech notifications ${e.target.checked ? 'ENABLED' : 'DISABLED'}`, 'info');
 });
 
+document.getElementById('boxStyleSelect').addEventListener('change', (e) => {
+  logConsole(`Annotation Box Style changed to: ${e.target.options[e.target.selectedIndex].text}`, 'info');
+  sendConfig();
+});
+
+['showLabels', 'showColorFill', 'showMask', 'showCenterDot', 'showTriangle', 'showConfidenceBar'].forEach(id => {
+  document.getElementById(id).addEventListener('change', (e) => {
+    const label = e.target.parentElement.textContent.trim();
+    logConsole(`Overlay option '${label}' is now ${e.target.checked ? 'ENABLED' : 'DISABLED'}`, 'info');
+    
+    if (id === 'showMask' && e.target.checked && modelSelect.value !== 'Segment Small (129M)') {
+      modelSelect.value = 'Segment Small (129M)';
+      logConsole(`Auto-switched model engine to: Segment Small (129M) to support filled masks.`, 'info');
+    }
+    
+    sendConfig();
+  });
+});
+
 function sendConfig() {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
   lastConfig = {
     model: modelSelect.value,
-    threshold: parseFloat(confSlider.value)
+    threshold: parseFloat(confSlider.value),
+    annotations: {
+      boxType: document.getElementById('boxStyleSelect').value,
+      showLabels: document.getElementById('showLabels').checked,
+      showColorFill: document.getElementById('showColorFill').checked,
+      showMask: document.getElementById('showMask').checked,
+      showCenterDot: document.getElementById('showCenterDot').checked,
+      showTriangle: document.getElementById('showTriangle').checked,
+      showConfidenceBar: document.getElementById('showConfidenceBar').checked
+    }
   };
   ws.send(JSON.stringify({ type: 'config', ...lastConfig }));
 }
