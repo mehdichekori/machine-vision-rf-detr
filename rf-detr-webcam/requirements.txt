@@ -1,0 +1,6 @@
+rfdetr
+gradio>=5.0.0
+supervision
+Pillow
+opencv-python
+torch
