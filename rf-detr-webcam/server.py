@@ -7,6 +7,7 @@ import base64
 import json
 import torch
 import asyncio
+import time
 
 app = Flask(__name__)
 sock = Sock(app)
@@ -104,14 +105,33 @@ def websocket(ws):
                         "type": "status",
                         "message": f"Model '{active_model_name}' is still loading on the server. Please wait...",
                         "statusClass": "error"
-                    }))
+                      }))
                     continue
 
+                t_start = time.perf_counter()
                 detections = model.predict(frame_small, threshold=threshold)
+                inference_ms = (time.perf_counter() - t_start) * 1000.0
 
                 # Scale boxes back to original
                 if scale < 1.0:
                     detections.xyxy = (detections.xyxy / scale).astype(np.int64)
+
+                # Build serialized detections
+                objects_list = []
+                if len(detections) > 0:
+                    for cls_id, conf, bbox in zip(detections.class_id, detections.confidence, detections.xyxy):
+                        objects_list.append({
+                            "class": COCO_CLASSES[int(cls_id)],
+                            "confidence": float(conf),
+                            "box": [int(x) for x in bbox]
+                        })
+
+                # Send telemetry JSON
+                ws.send(json.dumps({
+                    "type": "detections",
+                    "objects": objects_list,
+                    "inference_ms": inference_ms
+                }))
 
                 # Annotate
                 if len(detections) > 0:

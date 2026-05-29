@@ -3,172 +3,700 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RF-DETR WebRTC — Real-Time Object Detection</title>
+<title>RF-DETR Telemetry Dashboard — Real-Time Object Detection</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg-dark: #0a0a0c;
+    --card-bg: rgba(22, 22, 28, 0.7);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --text-primary: #f3f4f6;
+    --text-secondary: #9ca3af;
+    --text-muted: #6b7280;
+    
+    --primary: #00ff88;
+    --primary-glow: rgba(0, 255, 136, 0.15);
+    
+    --alert: #ff3b30;
+    --alert-glow: rgba(255, 59, 48, 0.2);
+    
+    --accent-blue: #00d2ff;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: #111;
-    color: #eee;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--bg-dark);
+    background-image: 
+      radial-gradient(circle at 50% 50%, rgba(20, 20, 30, 0.6) 0%, rgba(10, 10, 12, 1) 100%),
+      linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 24px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px;
-    min-height: 100vh;
   }
+
+  .app-container {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  header {
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
   h1 {
-    font-size: 1.4rem;
-    font-weight: 600;
-    color: #00ff88;
-    margin-bottom: 4px;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
+
+  .badge {
+    font-size: 0.65rem;
+    background: linear-gradient(135deg, #00ff88 0%, #00d2ff 100%);
+    color: #050505;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
   .subtitle {
     font-size: 0.85rem;
-    color: #888;
-    margin-bottom: 16px;
+    color: var(--text-secondary);
+    margin-top: 4px;
   }
-  .controls {
+
+  .main-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  @media (min-width: 900px) {
+    .main-layout {
+      grid-template-columns: 3fr 2fr;
+    }
+  }
+
+  .left-panel {
     display: flex;
-    gap: 10px;
-    align-items: stretch;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
   }
+
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .card:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .card h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 6px;
+  }
+
+  /* Controls Form Styling */
+  .controls-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  @media (min-width: 600px) {
+    .controls-grid {
+      grid-template-columns: repeat(3, 1fr);
+      align-items: flex-end;
+    }
+  }
+
   .control-group {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    min-width: 130px;
+    gap: 6px;
   }
+
   .control-group label {
     font-size: 0.7rem;
-    color: #888;
+    color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    font-weight: 500;
   }
-  select, input[type=range], .btn, .fps {
-    background: #1e1e1e;
-    color: #eee;
-    border: 1px solid #333;
+
+  select, input[type=range], .btn {
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 6px 10px;
+    padding: 8px 12px;
     font-size: 0.85rem;
     font-family: inherit;
     cursor: pointer;
     transition: all 0.2s;
-    min-width: 130px;
-    text-align: center;
+    width: 100%;
   }
-  input[type=range] { width: 130px; cursor: pointer; }
-  select { text-align: left; }
-  .btn {
-    background: #1e1e1e;
-    color: #eee;
-    border: 1px solid #333;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.2s;
+
+  select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/><path d='M0 0h24v24H0z' fill='none'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 16px;
+    padding-right: 30px;
   }
-  .btn {
-    background: #1e1e1e;
-    color: #eee;
-    border: 1px solid #333;
-    border-radius: 6px;
-    padding: 6px 10px;
-    font-size: 0.85rem;
-    font-family: inherit;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: 120px;
+
+  select:focus, .btn:focus {
+    outline: none;
+    border-color: var(--primary);
   }
-  .btn:hover { border-color: #00ff88; color: #00ff88; }
-  .btn.on { border-color: #00ff88; color: #00ff88; }
-  .fps {
-    color: #00ff88;
-    font-weight: 600;
-    border-color: #00ff88;
+
+  .slider-container {
     display: flex;
     align-items: center;
-    justify-content: center;
-    width: 120px;
+    gap: 10px;
   }
-  #confValue { width: 120px; }
+
+  input[type=range] {
+    flex-grow: 1;
+    padding: 0;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    outline: none;
+  }
+
+  #confValue {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--primary);
+    font-weight: 600;
+    min-width: 35px;
+    text-align: right;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    font-weight: 500;
+    text-align: center;
+    border-color: var(--border-color);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .btn:hover {
+    background: rgba(0, 255, 136, 0.05);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
+  }
+
+  .btn.on {
+    background: rgba(0, 255, 136, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+  }
+
+  /* Video & Canvas container */
   .video-container {
     position: relative;
     border-radius: 12px;
     overflow: hidden;
-    border: 2px solid #222;
+    border: 2px solid var(--border-color);
     background: #000;
     max-width: 100%;
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
+
   video, canvas {
-    display: block;
-    width: 100%;
-    max-width: 900px;
-  }
-  canvas {
     position: absolute;
-    top: 0; left: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  video {
+    transform: scaleX(-1);
+  }
+
+  canvas {
     pointer-events: none;
+    z-index: 2;
   }
-  video { opacity: 1; }
+
+  .alarm-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 0px solid transparent;
+    pointer-events: none;
+    transition: border-width 0.15s ease, border-color 0.15s ease;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 16px;
+  }
+
+  .alarm-overlay.active {
+    border: 6px solid var(--alert);
+    animation: pulse-border 1.5s infinite;
+  }
+
+  @keyframes pulse-border {
+    0% { border-color: rgba(255, 59, 48, 1); box-shadow: inset 0 0 20px rgba(255, 59, 48, 0.5); }
+    50% { border-color: rgba(255, 59, 48, 0.3); box-shadow: inset 0 0 8px rgba(255, 59, 48, 0.1); }
+    100% { border-color: rgba(255, 59, 48, 1); box-shadow: inset 0 0 20px rgba(255, 59, 48, 0.5); }
+  }
+
+  .alarm-banner {
+    background: var(--alert);
+    color: white;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    padding: 6px 14px;
+    border-radius: 4px;
+    align-self: center;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px rgba(255, 59, 48, 0.4);
+    z-index: 11;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .alarm-overlay.active .alarm-banner {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
   .status {
-    margin-top: 10px;
     font-size: 0.8rem;
-    color: #666;
+    color: var(--text-secondary);
     min-height: 20px;
+    padding: 4px 8px;
+    border-left: 2px solid var(--text-muted);
+    transition: all 0.2s;
   }
-  .status.error { color: #ff4444; }
-  .status.ok { color: #00ff00; }
-  .instructions {
-    margin-top: 16px;
-    font-size: 0.8rem;
-    color: #555;
+  .status.error { color: var(--alert); border-left-color: var(--alert); }
+  .status.ok { color: var(--primary); border-left-color: var(--primary); }
+
+  /* Telemetry metrics widget */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .metric-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 8px;
     text-align: center;
-    max-width: 500px;
+  }
+
+  .metric-label {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+  }
+
+  .metric-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .metric-sub {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Trigger settings */
+  .alert-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #triggerClassInput {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  #triggerClassInput:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 10px var(--primary-glow);
+  }
+
+  .class-hint {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .alarm-options {
+    display: flex;
+    gap: 16px;
+    margin-top: 4px;
+  }
+
+  .toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .toggle-container input[type=checkbox] {
+    accent-color: var(--primary);
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+  }
+
+  .trigger-status-box {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .trigger-status-box span {
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+  }
+
+  .trigger-status-box span.safe {
+    background: rgba(0, 255, 136, 0.1);
+    color: var(--primary);
+    border: 1px solid var(--primary);
+  }
+
+  .trigger-status-box span.alarm {
+    background: rgba(255, 59, 48, 0.15);
+    color: var(--alert);
+    border: 1px solid var(--alert);
+    animation: flash-badge 1s infinite;
+  }
+
+  @keyframes flash-badge {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Target Inventory list */
+  .target-inventory {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .inventory-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+
+  .item-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: capitalize;
+  }
+
+  .item-confidence-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 130px;
+  }
+
+  .item-progress {
+    flex-grow: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .item-progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.1s ease;
+  }
+
+  .item-percent {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  .empty-inventory {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 20px 0;
+    font-style: italic;
+  }
+
+  /* Console Log */
+  .console-log {
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    height: 110px;
+    overflow-y: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .log-line {
+    line-height: 1.4;
+    word-break: break-all;
+  }
+
+  .log-time {
+    color: var(--text-muted);
+    margin-right: 6px;
+  }
+
+  .log-line.info { color: var(--accent-blue); }
+  .log-line.warning { color: var(--alert); }
+  .log-line.success { color: var(--primary); }
+
+  /* Info / instructions footer */
+  .instructions {
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
     line-height: 1.5;
   }
 </style>
 </head>
 <body>
 
-<h1>RF-DETR WebRTC</h1>
-<p class="subtitle">Real-time object detection with direct WebSocket streaming</p>
+<div class="app-container">
+  <header>
+    <div>
+      <h1>RF-DETR Telemetry Dashboard <span class="badge">V2.0</span></h1>
+      <p class="subtitle">Real-time object detection with live analytics & custom warning triggers</p>
+    </div>
+  </header>
 
-<div class="controls">
-  <div class="control-group">
-    <label>Model</label>
-    <select id="modelSelect">
-      <option value="Small (43M)">Small (43M)</option>
-      <option value="Medium (160M)">Medium (160M)</option>
-      <option value="Large (227M)">Large (227M)</option>
-    </select>
-  </div>
-  <div class="control-group">
-    <label>Confidence</label>
-    <input type="range" id="confSlider" min="0.1" max="0.9" step="0.05" value="0.5">
-  </div>
-  <div class="control-group">
-    <label>&nbsp;</label>
-    <span id="confValue" style="background:#1e1e1e;color:#888;border:1px solid #333;border-radius:6px;padding:6px 10px;font-size:0.85rem;display:block;text-align:center">0.50</span>
-  </div>
-  <button id="cameraBtn" class="btn" onclick="toggleCamera()">Camera Off</button>
-  <button id="detectBtn" class="btn" onclick="toggleDetection()">Detection Off</button>
-  <div class="fps" id="fpsDisplay">FPS: —</div>
-</div>
+  <div class="main-layout">
+    <!-- Left Panel: Feed and controls -->
+    <div class="left-panel">
+      <div class="controls-panel card">
+        <div class="controls-grid">
+          <div class="control-group">
+            <label>Model Engine</label>
+            <select id="modelSelect">
+              <option value="Small (43M)">Small (43M)</option>
+              <option value="Medium (160M)">Medium (160M)</option>
+              <option value="Large (227M)">Large (227M)</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>Min Confidence</label>
+            <div class="slider-container">
+              <input type="range" id="confSlider" min="0.1" max="0.9" step="0.05" value="0.5">
+              <span id="confValue">0.50</span>
+            </div>
+          </div>
+          <div class="control-group">
+            <label>&nbsp;</label>
+            <div class="btn-group">
+              <button id="cameraBtn" class="btn" onclick="toggleCamera()">Camera Off</button>
+              <button id="detectBtn" class="btn" onclick="toggleDetection()">Detection Off</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-<div class="video-container">
-  <video id="video" autoplay muted playsinline></video>
-  <canvas id="canvas"></canvas>
-</div>
+      <div class="video-container card">
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+        <div id="alarmOverlay" class="alarm-overlay">
+          <div class="alarm-banner">WARNING: TARGET DETECTED</div>
+        </div>
+      </div>
+      
+      <div class="status" id="status">Click "Camera On" to begin</div>
+      
+      <div class="instructions">
+        Camera On/Off controls the webcam feed. Detection On/Off starts/stops sending frames for server-side neural network inference.
+      </div>
+    </div>
 
-<div class="status" id="status">Click "Camera On" to begin</div>
-<div class="instructions">
-  Camera On/Off controls the webcam feed. Detection On/Off starts or stops sending frames for inference.
+    <!-- Right Panel: Diagnostics & Dashboard Sidebar -->
+    <div class="right-panel">
+      <!-- Diagnostics Panel -->
+      <div class="card telemetry-card">
+        <h3>System Telemetry</h3>
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-label">Inference</div>
+            <div class="metric-value" id="inferenceVal">— ms</div>
+            <div class="metric-sub">Server run</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Network RTT</div>
+            <div class="metric-value" id="rttVal">— ms</div>
+            <div class="metric-sub">WS latency</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Framerate</div>
+            <div class="metric-value" id="fpsVal">— FPS</div>
+            <div class="metric-sub">Client loop</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alarm Trigger Settings -->
+      <div class="card alert-settings-card">
+        <h3>Trigger Alarm Center</h3>
+        <div class="alert-form">
+          <div class="control-group">
+            <label for="triggerClassInput">Trigger Target Class</label>
+            <input type="text" id="triggerClassInput" placeholder="e.g. person, cup, cell phone" value="person">
+            <div class="class-hint">Type object class name (matches COCO tags)</div>
+          </div>
+          <div class="alarm-options">
+            <label class="toggle-container">
+              <input type="checkbox" id="enableBeep">
+              <span class="checkmark"></span>
+              Siren Tone
+            </label>
+            <label class="toggle-container">
+              <input type="checkbox" id="enableSpeech">
+              <span class="checkmark"></span>
+              Speech Synthesizer
+            </label>
+          </div>
+          <div class="trigger-status-box" id="triggerStatusBox">
+            Status: <span id="triggerStatusText" class="safe">SAFE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Target Inventory -->
+      <div class="card inventory-card">
+        <h3>Live Target Inventory</h3>
+        <div id="targetInventory" class="target-inventory">
+          <div class="empty-inventory">No targets detected in current frame</div>
+        </div>
+      </div>
+
+      <!-- System Console Log -->
+      <div class="card console-card">
+        <h3>Telemetry Event Log</h3>
+        <div class="console-log" id="consoleLog">
+          <div class="log-line text-muted">[system] Dashboard initialized.</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -176,12 +704,14 @@ const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const status = document.getElementById('status');
-const fpsDisplay = document.getElementById('fpsDisplay');
 const confSlider = document.getElementById('confSlider');
 const confValue = document.getElementById('confValue');
 const modelSelect = document.getElementById('modelSelect');
 const cameraBtn = document.getElementById('cameraBtn');
 const detectBtn = document.getElementById('detectBtn');
+const alarmOverlay = document.getElementById('alarmOverlay');
+const triggerStatusText = document.getElementById('triggerStatusText');
+const targetInventory = document.getElementById('targetInventory');
 
 let ws = null;
 let stream = null;
@@ -192,13 +722,114 @@ let lastConfig = { model: 'Small (43M)', threshold: 0.5 };
 let frameCount = 0;
 let lastFpsTime = performance.now();
 let currentFps = 0;
+let lastFrameSendTime = 0;
+let triggerState = 'safe';
+let lastAlertLogTime = 0;
+let lastSpokenTime = 0;
+const SPEECH_DEBOUNCE_MS = 4000;
+let audioCtx = null;
 
+// Console Logger Helper
+function logConsole(message, type = 'info') {
+  const consoleLog = document.getElementById('consoleLog');
+  if (!consoleLog) return;
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0];
+  
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.innerHTML = `<span class="log-time">[${timeStr}]</span> ${message}`;
+  
+  consoleLog.appendChild(line);
+  consoleLog.scrollTop = consoleLog.scrollHeight;
+  
+  while (consoleLog.children.length > 50) {
+    consoleLog.removeChild(consoleLog.firstChild);
+  }
+}
+
+// Web Audio Warning Generator
+function playAlarmBeep() {
+  if (!document.getElementById('enableBeep').checked) return;
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+    osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.15);
+    
+    gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.15);
+  } catch (e) {
+    console.error("Audio synthesis beep failed", e);
+  }
+}
+
+// Browser TTS Alerts
+function speakAlert(text) {
+  if (!document.getElementById('enableSpeech').checked) return;
+  const now = performance.now();
+  if (now - lastSpokenTime < SPEECH_DEBOUNCE_MS) return;
+  
+  try {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); // Flush previous alerts
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.15;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+      lastSpokenTime = now;
+    }
+  } catch (e) {
+    console.error("Speech synthesis failed", e);
+  }
+}
+
+// Log changes to settings
 confSlider.addEventListener('input', () => {
   confValue.textContent = parseFloat(confSlider.value).toFixed(2);
 });
 
-modelSelect.addEventListener('change', sendConfig);
-confSlider.addEventListener('change', sendConfig);
+modelSelect.addEventListener('change', () => {
+  logConsole(`Model configuration changed to: ${modelSelect.value}`, 'info');
+  sendConfig();
+});
+
+confSlider.addEventListener('change', () => {
+  logConsole(`Min confidence updated to: ${parseFloat(confSlider.value).toFixed(2)}`, 'info');
+  sendConfig();
+});
+
+document.getElementById('triggerClassInput').addEventListener('change', (e) => {
+  const val = e.target.value.trim().toLowerCase();
+  if (val) {
+    logConsole(`Alert trigger class configured to: '${val}'`, 'info');
+  } else {
+    logConsole('Alert trigger deactivated', 'info');
+  }
+});
+
+document.getElementById('enableBeep').addEventListener('change', (e) => {
+  logConsole(`Siren alarm audio ${e.target.checked ? 'ENABLED' : 'DISABLED'}`, 'info');
+});
+
+document.getElementById('enableSpeech').addEventListener('change', (e) => {
+  logConsole(`Speech notifications ${e.target.checked ? 'ENABLED' : 'DISABLED'}`, 'info');
+});
 
 function sendConfig() {
   if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -222,21 +853,32 @@ async function startCamera() {
 }
 
 function connect() {
+  logConsole("Initializing WebSocket connection...", 'info');
   ws = new WebSocket('ws://localhost:7861/ws');
   ws.binaryType = 'blob';
+  
   ws.onopen = () => {
+    logConsole("WebSocket link established.", 'success');
     ws.send(JSON.stringify({ type: 'init' }));
     sendConfig();
   };
+  
   ws.onmessage = (e) => {
     if (typeof e.data === 'string') {
       const msg = JSON.parse(e.data);
       if (msg.type === 'ready' || msg.type === 'config_ok') {
-        status.textContent = 'Detection ready — point your camera at objects.';
+        status.textContent = 'Detection ready — point camera at targets.';
         status.className = 'status ok';
       } else if (msg.type === 'status') {
         status.textContent = msg.message;
         status.className = msg.statusClass || 'status';
+      } else if (msg.type === 'detections') {
+        // Parse metadata packet
+        const rtt = performance.now() - lastFrameSendTime;
+        document.getElementById('rttVal').textContent = `${Math.round(rtt)} ms`;
+        document.getElementById('inferenceVal').textContent = `${Math.round(msg.inference_ms)} ms`;
+        
+        handleTelemetryDetections(msg.objects);
       }
     } else {
       // Binary frame containing the annotated image
@@ -244,17 +886,102 @@ function connect() {
       processing = false;
     }
   };
+  
   ws.onerror = () => {
-    status.textContent = 'WebSocket error — is the Python server running?';
+    status.textContent = 'WebSocket connection failed. Verify python server.py is running.';
     status.className = 'status error';
+    logConsole("WebSocket connection error.", 'warning');
   };
+  
   ws.onclose = () => {
     ws = null;
     if (cameraOn) {
-      status.textContent = 'Disconnected.';
+      status.textContent = 'Server connection closed.';
       status.className = 'status';
+      logConsole("WebSocket connection lost.", 'warning');
     }
   };
+}
+
+function handleTelemetryDetections(objects) {
+  const triggerClassInput = document.getElementById('triggerClassInput').value.trim().toLowerCase();
+  
+  // Clear inventory list
+  targetInventory.innerHTML = '';
+  
+  if (!objects || objects.length === 0) {
+    targetInventory.innerHTML = '<div class="empty-inventory">No targets detected in current frame</div>';
+    
+    // Clear trigger if active
+    if (triggerState === 'alert') {
+      alarmOverlay.classList.remove('active');
+      triggerStatusText.textContent = 'SAFE';
+      triggerStatusText.className = 'safe';
+      logConsole(`Clear: Trigger class '${triggerClassInput}' is no longer detected.`, 'success');
+      triggerState = 'safe';
+    }
+    return;
+  }
+  
+  let triggerFound = false;
+  let highestConfidence = 0;
+  
+  // Sort detections by confidence descending
+  const sortedObjects = [...objects].sort((a, b) => b.confidence - a.confidence);
+  
+  sortedObjects.forEach(obj => {
+    const item = document.createElement('div');
+    item.className = 'inventory-item';
+    const percentage = Math.round(obj.confidence * 100);
+    
+    item.innerHTML = `
+      <span class="item-name">${obj.class}</span>
+      <div class="item-confidence-container">
+        <div class="item-progress">
+          <div class="item-progress-fill" style="width: ${percentage}%"></div>
+        </div>
+        <span class="item-percent">${percentage}%</span>
+      </div>
+    `;
+    targetInventory.appendChild(item);
+    
+    if (triggerClassInput && obj.class.toLowerCase() === triggerClassInput) {
+      triggerFound = true;
+      if (obj.confidence > highestConfidence) {
+        highestConfidence = obj.confidence;
+      }
+    }
+  });
+  
+  const now = performance.now();
+  if (triggerFound) {
+    alarmOverlay.classList.add('active');
+    triggerStatusText.textContent = `ALERT (${Math.round(highestConfidence * 100)}%)`;
+    triggerStatusText.className = 'alarm';
+    
+    // Play warning sound
+    playAlarmBeep();
+    
+    // Speak voice warning
+    speakAlert(`${triggerClassInput} detected`);
+    
+    if (triggerState === 'safe') {
+      logConsole(`ALERT: Trigger '${triggerClassInput}' detected! Confidence: ${Math.round(highestConfidence * 100)}%`, 'warning');
+      triggerState = 'alert';
+      lastAlertLogTime = now;
+    } else if (now - lastAlertLogTime > 4000) {
+      logConsole(`ALERT: Trigger '${triggerClassInput}' active (${Math.round(highestConfidence * 100)}%)`, 'warning');
+      lastAlertLogTime = now;
+    }
+  } else {
+    if (triggerState === 'alert') {
+      alarmOverlay.classList.remove('active');
+      triggerStatusText.textContent = 'SAFE';
+      triggerStatusText.className = 'safe';
+      logConsole(`Clear: Trigger class '${triggerClassInput}' is no longer detected.`, 'success');
+      triggerState = 'safe';
+    }
+  }
 }
 
 function disconnect() {
@@ -267,12 +994,26 @@ function stopCamera() {
   if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
   video.srcObject = null;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  fpsDisplay.textContent = 'FPS: —';
+  
+  document.getElementById('fpsVal').textContent = '— FPS';
+  document.getElementById('inferenceVal').textContent = '— ms';
+  document.getElementById('rttVal').textContent = '— ms';
+  
   frameCount = 0;
   cameraBtn.textContent = 'Camera Off';
   cameraBtn.classList.remove('on');
   detectBtn.textContent = 'Detection Off';
   detectBtn.classList.remove('on');
+  
+  if (triggerState === 'alert') {
+    alarmOverlay.classList.remove('active');
+    triggerStatusText.textContent = 'SAFE';
+    triggerStatusText.className = 'safe';
+    triggerState = 'safe';
+  }
+  
+  targetInventory.innerHTML = '<div class="empty-inventory">No targets detected in current frame</div>';
+  logConsole("Camera and capture loop stopped.", 'info');
   disconnect();
 }
 
@@ -282,16 +1023,19 @@ function toggleCamera() {
     status.textContent = 'Click "Camera On" to begin';
     status.className = 'status';
   } else {
-    status.textContent = 'Starting camera...';
+    status.textContent = 'Initializing camera...';
     status.className = 'status';
+    logConsole("Requesting webcam access...", 'info');
     startCamera().then(() => {
       cameraOn = true;
       cameraBtn.textContent = 'Camera On';
       cameraBtn.classList.add('on');
+      logConsole("Webcam access granted.", 'success');
       connect();
     }).catch(e => {
-      status.textContent = 'Camera access denied — please allow permission.';
+      status.textContent = 'Webcam permission denied.';
       status.className = 'status error';
+      logConsole("Webcam access denied by user.", 'warning');
     });
   }
 }
@@ -303,16 +1047,30 @@ function toggleDetection() {
     detectBtn.textContent = 'Detection Off';
     detectBtn.classList.remove('on');
     clearOverlay();
-    fpsDisplay.textContent = 'FPS: —';
+    
+    document.getElementById('fpsVal').textContent = '— FPS';
+    document.getElementById('inferenceVal').textContent = '— ms';
+    document.getElementById('rttVal').textContent = '— ms';
+    
     frameCount = 0;
-    status.textContent = 'Detection paused — camera still running.';
+    status.textContent = 'Detection paused.';
     status.className = 'status';
+    logConsole("Object detection paused.", 'info');
+    
+    if (triggerState === 'alert') {
+      alarmOverlay.classList.remove('active');
+      triggerStatusText.textContent = 'SAFE';
+      triggerStatusText.className = 'safe';
+      triggerState = 'safe';
+    }
+    targetInventory.innerHTML = '<div class="empty-inventory">No targets detected in current frame</div>';
   } else {
     detectionOn = true;
     detectBtn.textContent = 'Detection On';
     detectBtn.classList.add('on');
-    status.textContent = 'Detection active — point your camera at objects.';
+    status.textContent = 'Detection active.';
     status.className = 'status ok';
+    logConsole("Object detection tracking started.", 'success');
     lastFpsTime = performance.now();
     requestAnimationFrame(captureFrame);
   }
@@ -324,6 +1082,7 @@ function captureFrame(timestamp) {
     return;
   }
 
+  // Cap at ~15 FPS max frame capture (66ms throttle) to keep networking / server budget healthy
   if (timestamp - lastFpsTime < 66) {
     requestAnimationFrame(captureFrame);
     return;
@@ -334,19 +1093,25 @@ function captureFrame(timestamp) {
   const hiddenCanvas = document.createElement('canvas');
   hiddenCanvas.width = video.videoWidth;
   hiddenCanvas.height = video.videoHeight;
-  hiddenCanvas.getContext('2d').drawImage(video, 0, 0);
+  const hCtx = hiddenCanvas.getContext('2d');
+  hCtx.translate(hiddenCanvas.width, 0);
+  hCtx.scale(-1, 1);
+  hCtx.drawImage(video, 0, 0);
 
   frameCount++;
   if (timestamp - lastFpsTime >= 1000) {
     currentFps = frameCount;
-    fpsDisplay.textContent = `FPS: ${currentFps}`;
+    document.getElementById('fpsVal').textContent = `${currentFps} FPS`;
     frameCount = 0;
     lastFpsTime = timestamp;
   }
 
   hiddenCanvas.toBlob((blob) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
+      lastFrameSendTime = performance.now();
       ws.send(blob);
+    } else {
+      processing = false;
     }
   }, 'image/jpeg', 0.5);
 
