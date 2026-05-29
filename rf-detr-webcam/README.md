@@ -1,21 +1,65 @@
 # RF-DETR Webcam Detection
 
-Real-time object detection in the browser using your webcam and Roboflow's RF-DETR vision transformer.
+Real-time object detection in the browser using your webcam and Roboflow's RF-DETR vision transformer. Low-latency binary WebSocket streaming with a pure JavaScript frontend — no base64 parsing or HTTP polling overhead.
 
 ## Setup
 
+Ensure you are inside the `rf-detr-webcam` directory:
+
 ```bash
 cd rf-detr-webcam
+```
+
+If a virtual environment exists, activate it:
+```bash
+source .venv/bin/activate
+```
+
+Install requirements:
+```bash
 pip install -r requirements.txt
 ```
 
 ## Run
 
+If your virtual environment is active:
 ```bash
-python app.py
+python server.py
 ```
 
-Open http://localhost:7860 in your browser, grant webcam permission, select a model size (Large recommended for M4 Max), adjust the confidence threshold, and click Enable Camera.
+Otherwise, you can run the server directly using `python3` or the virtualenv python:
+```bash
+python3 server.py
+# or
+./.venv/bin/python3 server.py
+```
+
+Open http://localhost:7861 in your browser, grant webcam permission, then click **Camera On**. Use the **Detection On/Off** toggle to pause and resume inference without stopping the camera feed.
+
+## Controls
+
+| Control | Description |
+|---------|-------------|
+| **Camera On/Off** | Starts or stops the webcam stream |
+| **Detection On/Off** | Sends frames to the server for inference (camera keeps running) |
+| **Model** | Small (43M), Medium (160M), or Large (227M) — all pre-loaded at startup |
+| **Confidence** | Filter detections by minimum confidence threshold |
+
+## Architecture
+
+```
+Browser (getUserMedia)
+  → Canvas frame blob (raw JPEG binary bytes)
+  → WebSocket → Flask server (port 7861)
+    → RF-DETR inference at 320px max
+    → supervision BoxAnnotator + LabelAnnotator
+    → annotated JPEG bytes (raw binary) returned over WebSocket
+  → Canvas overlay rendered from Object URL
+```
+
+- All 3 model sizes are pre-loaded and JIT-compiled on server startup (float16, `compile=True`)
+- Frames are captured at ~15 FPS max (66ms throttle) to stay well within inference budget
+- Isolated inference runs at ~35 FPS at 320px on M4 Max
 
 ## Requirements
 
@@ -31,4 +75,4 @@ Open http://localhost:7860 in your browser, grant webcam permission, select a mo
 | Medium (160M) | 160M | Balanced |
 | Large (227M) | 227M | Best accuracy, M4 Max |
 
-Models download automatically on first use from Roboflow's hosted ONNX weights.
+Models are loaded from and cached locally in the repository's `rf_models/` directory (created at the repository root). If they are not present, they will be automatically downloaded and saved to that folder on first run.

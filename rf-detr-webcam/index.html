@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RF-DETR WebRTC — Real-Time Object Detection</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #111;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: #00ff88;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 16px;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 130px;
+  }
+  .control-group label {
+    font-size: 0.7rem;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  select, input[type=range], .btn, .fps {
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 130px;
+    text-align: center;
+  }
+  input[type=range] { width: 130px; cursor: pointer; }
+  select { text-align: left; }
+  .btn {
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn {
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 120px;
+  }
+  .btn:hover { border-color: #00ff88; color: #00ff88; }
+  .btn.on { border-color: #00ff88; color: #00ff88; }
+  .fps {
+    color: #00ff88;
+    font-weight: 600;
+    border-color: #00ff88;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+  }
+  #confValue { width: 120px; }
+  .video-container {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #222;
+    background: #000;
+    max-width: 100%;
+  }
+  video, canvas {
+    display: block;
+    width: 100%;
+    max-width: 900px;
+  }
+  canvas {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+  }
+  video { opacity: 1; }
+  .status {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #666;
+    min-height: 20px;
+  }
+  .status.error { color: #ff4444; }
+  .status.ok { color: #00ff00; }
+  .instructions {
+    margin-top: 16px;
+    font-size: 0.8rem;
+    color: #555;
+    text-align: center;
+    max-width: 500px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<h1>RF-DETR WebRTC</h1>
+<p class="subtitle">Real-time object detection with direct WebSocket streaming</p>
+
+<div class="controls">
+  <div class="control-group">
+    <label>Model</label>
+    <select id="modelSelect">
+      <option value="Small (43M)">Small (43M)</option>
+      <option value="Medium (160M)">Medium (160M)</option>
+      <option value="Large (227M)">Large (227M)</option>
+    </select>
+  </div>
+  <div class="control-group">
+    <label>Confidence</label>
+    <input type="range" id="confSlider" min="0.1" max="0.9" step="0.05" value="0.5">
+  </div>
+  <div class="control-group">
+    <label>&nbsp;</label>
+    <span id="confValue" style="background:#1e1e1e;color:#888;border:1px solid #333;border-radius:6px;padding:6px 10px;font-size:0.85rem;display:block;text-align:center">0.50</span>
+  </div>
+  <button id="cameraBtn" class="btn" onclick="toggleCamera()">Camera Off</button>
+  <button id="detectBtn" class="btn" onclick="toggleDetection()">Detection Off</button>
+  <div class="fps" id="fpsDisplay">FPS: —</div>
+</div>
+
+<div class="video-container">
+  <video id="video" autoplay muted playsinline></video>
+  <canvas id="canvas"></canvas>
+</div>
+
+<div class="status" id="status">Click "Camera On" to begin</div>
+<div class="instructions">
+  Camera On/Off controls the webcam feed. Detection On/Off starts or stops sending frames for inference.
+</div>
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const status = document.getElementById('status');
+const fpsDisplay = document.getElementById('fpsDisplay');
+const confSlider = document.getElementById('confSlider');
+const confValue = document.getElementById('confValue');
+const modelSelect = document.getElementById('modelSelect');
+const cameraBtn = document.getElementById('cameraBtn');
+const detectBtn = document.getElementById('detectBtn');
+
+let ws = null;
+let stream = null;
+let processing = false;
+let cameraOn = false;
+let detectionOn = false;
+let lastConfig = { model: 'Small (43M)', threshold: 0.5 };
+let frameCount = 0;
+let lastFpsTime = performance.now();
+let currentFps = 0;
+
+confSlider.addEventListener('input', () => {
+  confValue.textContent = parseFloat(confSlider.value).toFixed(2);
+});
+
+modelSelect.addEventListener('change', sendConfig);
+confSlider.addEventListener('change', sendConfig);
+
+function sendConfig() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  lastConfig = {
+    model: modelSelect.value,
+    threshold: parseFloat(confSlider.value)
+  };
+  ws.send(JSON.stringify({ type: 'config', ...lastConfig }));
+}
+
+async function startCamera() {
+  stream = await navigator.mediaDevices.getUserMedia({
+    video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } }
+  });
+  video.srcObject = stream;
+  video.onloadedmetadata = () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
+}
+
+function connect() {
+  ws = new WebSocket('ws://localhost:7861/ws');
+  ws.binaryType = 'blob';
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'init' }));
+    sendConfig();
+  };
+  ws.onmessage = (e) => {
+    if (typeof e.data === 'string') {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'ready' || msg.type === 'config_ok') {
+        status.textContent = 'Detection ready — point your camera at objects.';
+        status.className = 'status ok';
+      } else if (msg.type === 'status') {
+        status.textContent = msg.message;
+        status.className = msg.statusClass || 'status';
+      }
+    } else {
+      // Binary frame containing the annotated image
+      drawAnnotatedBlob(e.data);
+      processing = false;
+    }
+  };
+  ws.onerror = () => {
+    status.textContent = 'WebSocket error — is the Python server running?';
+    status.className = 'status error';
+  };
+  ws.onclose = () => {
+    ws = null;
+    if (cameraOn) {
+      status.textContent = 'Disconnected.';
+      status.className = 'status';
+    }
+  };
+}
+
+function disconnect() {
+  if (ws) { ws.close(); ws = null; }
+}
+
+function stopCamera() {
+  cameraOn = false;
+  detectionOn = false;
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  video.srcObject = null;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  fpsDisplay.textContent = 'FPS: —';
+  frameCount = 0;
+  cameraBtn.textContent = 'Camera Off';
+  cameraBtn.classList.remove('on');
+  detectBtn.textContent = 'Detection Off';
+  detectBtn.classList.remove('on');
+  disconnect();
+}
+
+function toggleCamera() {
+  if (cameraOn) {
+    stopCamera();
+    status.textContent = 'Click "Camera On" to begin';
+    status.className = 'status';
+  } else {
+    status.textContent = 'Starting camera...';
+    status.className = 'status';
+    startCamera().then(() => {
+      cameraOn = true;
+      cameraBtn.textContent = 'Camera On';
+      cameraBtn.classList.add('on');
+      connect();
+    }).catch(e => {
+      status.textContent = 'Camera access denied — please allow permission.';
+      status.className = 'status error';
+    });
+  }
+}
+
+function toggleDetection() {
+  if (!cameraOn) return;
+  if (detectionOn) {
+    detectionOn = false;
+    detectBtn.textContent = 'Detection Off';
+    detectBtn.classList.remove('on');
+    clearOverlay();
+    fpsDisplay.textContent = 'FPS: —';
+    frameCount = 0;
+    status.textContent = 'Detection paused — camera still running.';
+    status.className = 'status';
+  } else {
+    detectionOn = true;
+    detectBtn.textContent = 'Detection On';
+    detectBtn.classList.add('on');
+    status.textContent = 'Detection active — point your camera at objects.';
+    status.className = 'status ok';
+    lastFpsTime = performance.now();
+    requestAnimationFrame(captureFrame);
+  }
+}
+
+function captureFrame(timestamp) {
+  if (!detectionOn || !ws || ws.readyState !== WebSocket.OPEN || processing) {
+    if (detectionOn) requestAnimationFrame(captureFrame);
+    return;
+  }
+
+  if (timestamp - lastFpsTime < 66) {
+    requestAnimationFrame(captureFrame);
+    return;
+  }
+
+  processing = true;
+
+  const hiddenCanvas = document.createElement('canvas');
+  hiddenCanvas.width = video.videoWidth;
+  hiddenCanvas.height = video.videoHeight;
+  hiddenCanvas.getContext('2d').drawImage(video, 0, 0);
+
+  frameCount++;
+  if (timestamp - lastFpsTime >= 1000) {
+    currentFps = frameCount;
+    fpsDisplay.textContent = `FPS: ${currentFps}`;
+    frameCount = 0;
+    lastFpsTime = timestamp;
+  }
+
+  hiddenCanvas.toBlob((blob) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(blob);
+    }
+  }, 'image/jpeg', 0.5);
+
+  requestAnimationFrame(captureFrame);
+}
+
+function drawAnnotatedBlob(blob) {
+  if (!detectionOn) return;
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function clearOverlay() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+</script>
+</body>
+</html>
